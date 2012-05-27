@@ -673,6 +673,7 @@ class sliCommentsModelComments extends JModelList
 	{
 		$link	= $this->params->get('link', false);
 		$avatar	= $this->params->get('avatar', 'gravatar');
+		$default = $this->params->get('avatar_default');
 
 		if ($link == 'com_kunena') {
 			require_once JPATH_ADMINISTRATOR.'/components/com_kunena/libraries/factory.php';
@@ -683,23 +684,33 @@ class sliCommentsModelComments extends JModelList
 			switch ($avatar)
 			{
 				case 'gravatar':
-					$comments[$k]->avatar = '//www.gravatar.com/avatar/'.md5($comment->email);
+					$comments[$k]->avatar = '//www.gravatar.com/avatar/'.md5($comment->email)
+						. '?r=' . $this->params->get('gravatar.rating', 'g')
+						. '&d=' . ($default ? urlencode(JURI::base().$default) : $this->params->get('gravatar.default', 'mm'));
 					break;
 				case 'com_kunena':
 					if ($comment->avatar) {
 						$comments[$k]->avatar = 'media/kunena/avatars/resized/size72/'.$comment->avatar;
+					} else if ($default) {
+						$comments[$k]->avatar = JURI::base().$default;
 					} else {
 						$comments[$k]->avatar = 'media/kunena/avatars/resized/size72/s_nophoto.jpg';
 					}
 					break;
 				case 'com_community':
 					if (!$comment->avatar) {
-						$comments[$k]->avatar = 'components/com_community/assets/default_thumb.jpg';
+						if ($default) {
+							$comments[$k]->avatar = JURI::base().$default;
+						} else {
+							$comments[$k]->avatar = 'components/com_community/assets/default_thumb.jpg';
+						}
 					}
 					break;
 				case 'com_k2':
 					if ($comment->avatar) {
 						$comments[$k]->avatar = 'media/k2/users/'.$comment->avatar;
+					} else if ($default) {
+						$comments[$k]->avatar = JURI::base().$default;
 					} else {
 						$comments[$k]->avatar = 'components/com_k2/images/placeholder/user.png';
 					}
@@ -730,12 +741,24 @@ class sliCommentsModelComments extends JModelList
 	{
 		$user = JFactory::getUser();
 		$avatar	= $this->params->get('avatar', 'gravatar');
+		$default = $this->params->get('avatar_default');
 		switch ($avatar)
 		{
 			case 'gravatar':
-				return '//www.gravatar.com/avatar/'.md5($user->email);
+				if ($user->guest) {
+					$data = $this->getData();
+					$email = $data['email'];
+				} else {
+					$email = $user->email;
+				}
+				$avatar = '//www.gravatar.com/avatar/'. ($email ? md5($email) : '00000000000000000000000000000000');
+				$avatar .= '?r=' . $this->params->get('gravatar.rating', 'g');
+				$avatar .= '&d=' . ($default ? urlencode(JURI::base().$default) : $this->params->get('gravatar.default', 'mm'));
+				return $avatar;
+				
 			case 'com_kunena':
-				if ($user->guest) return 'media/kunena/avatars/resized/size72/s_nophoto.jpg';
+				if (!$default) $default = 'media/kunena/avatars/resized/size72/s_nophoto.jpg';
+				if ($user->guest) return JURI::base().$default;
 				$query = $this->_db->getQuery(true)
 					->select('avatar')
 					->from('#__kunena_users')
@@ -744,11 +767,12 @@ class sliCommentsModelComments extends JModelList
 				$avatar = $this->_db->loadResult();
 
 				if (!$avatar) {
-					return 'media/kunena/avatars/resized/size72/s_nophoto.jpg';
+					return JURI::base().$default;
 				}
 				return 'media/kunena/avatars/resized/size72/'.$avatar;
 			case 'com_community':
-				if ($user->guest) return 'components/com_community/assets/default_thumb.jpg';
+				if (!$default) $default = 'components/com_community/assets/default_thumb.jpg';
+				if ($user->guest) return JURI::base().$default;
 				$query = $this->_db->getQuery(true)
 					->select('thumb as avatar')
 					->from('#__community_users')
@@ -757,11 +781,12 @@ class sliCommentsModelComments extends JModelList
 				$avatar = $this->_db->loadResult();
 
 				if (!$avatar) {
-					return 'components/com_community/assets/default_thumb.jpg';
+					return JURI::base().$default;
 				}
 				return $avatar;
 			case 'com_k2':
-				if ($user->guest) return 'components/com_k2/images/placeholder/user.png';
+				if (!$default) $default = 'components/com_k2/images/placeholder/user.png';
+				if ($user->guest) return JURI::base().$default;
 				$query = $this->_db->getQuery(true)
 					->select('image')
 					->from('#__k2_users')
@@ -770,7 +795,7 @@ class sliCommentsModelComments extends JModelList
 				$avatar = $this->_db->loadResult();
 
 				if (!$avatar) {
-					return 'components/com_k2/images/placeholder/user.png';
+					return JURI::base().$default;
 				}
 				return 'media/k2/users/'.$avatar;
 		}
