@@ -40,7 +40,7 @@ $rating = $likes - $dislikes;
 		<div class="metadata">
 			<span class="author">
 				<?php
-				if (isset($link) && !empty($link)) { ?>
+				if ($this->params->get('link', false)) { ?>
 				<a href="<?php echo $link; ?>"><?php echo $this->escape($name); ?></a>
 				<?php
 				} else {
